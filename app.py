@@ -13,6 +13,65 @@ st.title("Les sciences des données en action")
 st.write("Quatre mini-expériences interactives : prévoir, recommander, reconnaître et explorer.")
 page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
+# Configuration visuelle du tableau de bord
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #f0f7ff 0%, #fff8e7 100%);
+    }
+
+    h1 {
+        color: #5425D8 !important;
+        font-weight: 900 !important;
+    }
+
+    h2, h3 {
+        color: #0756C9 !important;
+        font-weight: 800 !important;
+    }
+
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #5425D8, #087CFA);
+        padding: 18px;
+        border-radius: 16px;
+        box-shadow: 0 5px 14px #5425D833;
+    }
+
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricLabel"] p {
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+    }
+
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] div {
+        color: #FFE45E !important;
+        font-weight: 900 !important;
+    }
+
+    [data-testid="stMetricDelta"] {
+        color: #B8FFD8 !important;
+    }
+
+    div[data-testid="stDownloadButton"] button {
+        background: linear-gradient(90deg, #FF6B00, #FF2D75);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 800;
+    }
+
+    div[data-testid="stDownloadButton"] button:hover {
+        background: #5425D8;
+        color: white;
+    }
+
+    div[data-testid="stAlert"] {
+        border-radius: 12px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 if page == "Prévoir les ventes":
     st.header("Prévoir les ventes d'un magasin")
