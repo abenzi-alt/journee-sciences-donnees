@@ -435,6 +435,7 @@ else:
             annuel,
             x="annee",
             y="Precipitations_mm",
+            color_discrete_sequence=["#00C9A7"],
             labels={
                 "annee": "Année",
                 "Precipitations_mm": "Précipitations (mm)"
