@@ -420,6 +420,7 @@ else:
             annuel,
             x="annee",
             y="Jours_ensoleilles",
+            color_discrete_sequence=["#FFD600"],
             labels={
                 "annee": "Année",
                 "Jours_ensoleilles": "Nombre de jours"
