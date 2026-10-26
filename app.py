@@ -211,19 +211,231 @@ elif page=="Reconnaître une image":
                 st.code(str(e))
     st.caption("Modèle généraliste : les scores ne garantissent pas la justesse. Ne pas utiliser pour un diagnostic ou une décision à risque.")
     
+
 else:
-    st.header("Tableau de bord — Journée des sciences des données")
+    st.title("Météo et climat : évolution au fil des années")
     st.write(
-        "Vue d'ensemble des quatre expériences interactives "
-        "et de leurs objectifs."
+        "Explorez les variations de l'ensoleillement, des précipitations, "
+        "des températures et des épisodes météorologiques intenses."
     )
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Expériences disponibles", "4")
-    c2.metric("Domaines illustrés", "3")
-    c3.metric("Objectif", "Découvrir")
+    # Villes proposées : coordonnées géographiques
+    villes = {
+        "Ottawa": (45.4215, -75.6972),
+        "Montréal": (45.5019, -73.5674),
+        "Toronto": (43.6532, -79.3832),
+        "Québec": (46.8139, -71.2080),
+        "Vancouver": (49.2827, -123.1207),
+        "Paris": (48.8566, 2.3522),
+    }
 
-    st.subheader("Les expériences proposées")
+    c1, c2 = st.columns(2)
+
+    with c1:
+        ville = st.selectbox("Choisir une ville", list(villes.keys()))
+
+    with c2:
+        periode = st.slider(
+            "Période étudiée",
+            min_value=2000,
+            max_value=2025,
+            value=(2010, 2025)
+        )
+
+    latitude, longitude = villes[ville]
+    debut, fin = periode
+
+    @st.cache_data(ttl=86400)
+    def charger_meteo(lat, lon, annee_debut, annee_fin):
+        import requests
+
+        url = "https://archive-api.open-meteo.com/v1/archive"
+
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "start_date": f"{annee_debut}-01-01",
+            "end_date": f"{annee_fin}-12-31",
+            "daily": (
+                "weather_code,"
+                "temperature_2m_mean,"
+                "temperature_2m_max,"
+                "precipitation_sum,"
+                "rain_sum,"
+                "snowfall_sum,"
+                "precipitation_hours,"
+                "sunshine_duration,"
+                "wind_gusts_10m_max"
+            ),
+            "timezone": "auto"
+        }
+
+        reponse = requests.get(url, params=params, timeout=60)
+        reponse.raise_for_status()
+        donnees = reponse.json()
+
+        if "daily" not in donnees:
+            raise ValueError("Les données météorologiques sont indisponibles.")
+
+        df = pd.DataFrame(donnees["daily"])
+        df["time"] = pd.to_datetime(df["time"])
+        return df
+
+    try:
+        with st.spinner("Chargement des données météorologiques..."):
+            df = charger_meteo(
+                latitude, longitude, debut, fin
+            )
+
+        if df.empty:
+            st.warning("Aucune donnée disponible pour cette période.")
+            st.stop()
+
+        # Préparation des variables
+        df["annee"] = df["time"].dt.year
+        df["ensoleillement_h"] = df["sunshine_duration"] / 3600
+
+        # Définitions opérationnelles des indicateurs
+        df["jour_ensoleille"] = (
+            df["ensoleillement_h"] >= 6
+        ).astype(int)
+
+        df["jour_pluvieux"] = (
+            df["precipitation_sum"] > 1
+        ).astype(int)
+
+        # Orage selon le code météo, ou rafales >= 70 km/h
+        df["jour_intense"] = (
+            df["weather_code"].isin([95, 96, 99])
+            | (df["wind_gusts_10m_max"] >= 70)
+        ).astype(int)
+
+        # Agrégation annuelle
+        annuel = (
+            df.groupby("annee")
+            .agg(
+                Jours_ensoleilles=("jour_ensoleille", "sum"),
+                Ensoleillement_h=("ensoleillement_h", "sum"),
+                Precipitations_mm=("precipitation_sum", "sum"),
+                Jours_pluvieux=("jour_pluvieux", "sum"),
+                Heures_precipitations=("precipitation_hours", "sum"),
+                Jours_orage_ou_vents_forts=("jour_intense", "sum"),
+                Temperature_moyenne_C=("temperature_2m_mean", "mean"),
+                Temperature_maximale_C=("temperature_2m_max", "max"),
+                Neige_cm=("snowfall_sum", "sum"),
+                Rafale_max_kmh=("wind_gusts_10m_max", "max")
+            )
+            .reset_index()
+        )
+
+        st.subheader(f"Vue d'ensemble — {ville}")
+
+        total_soleil = int(annuel["Jours_ensoleilles"].sum())
+        total_pluie = round(annuel["Precipitations_mm"].sum(), 1)
+        total_intense = int(
+            annuel["Jours_orage_ou_vents_forts"].sum()
+        )
+        temp_moyenne = round(
+            df["temperature_2m_mean"].mean(), 1
+        )
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Jours ensoleillés", f"{total_soleil:,}")
+        m2.metric("Précipitations cumulées", f"{total_pluie:,.0f} mm")
+        m3.metric("Jours météo intense", f"{total_intense:,}")
+        m4.metric("Température moyenne", f"{temp_moyenne} °C")
+
+        st.caption(
+            "Les indicateurs couvrent la période sélectionnée. "
+            "Un jour ensoleillé correspond à au moins 6 h de soleil. "
+            "Un jour météo intense correspond à un code d'orage "
+            "(95, 96 ou 99) ou à des rafales d'au moins 70 km/h. "
+            "Ces indicateurs ne représentent pas un inventaire exhaustif "
+            "de toutes les tempêtes."
+        )
+
+        st.divider()
+        st.subheader("1. Combien de jours ensoleillés par année ?")
+
+        fig_soleil = px.bar(
+            annuel,
+            x="annee",
+            y="Jours_ensoleilles",
+            labels={
+                "annee": "Année",
+                "Jours_ensoleilles": "Nombre de jours"
+            },
+            title="Évolution annuelle des jours ensoleillés"
+        )
+        st.plotly_chart(fig_soleil, use_container_width=True)
+
+        st.subheader("2. Les précipitations augmentent-elles ?")
+
+        fig_pluie = px.bar(
+            annuel,
+            x="annee",
+            y="Precipitations_mm",
+            labels={
+                "annee": "Année",
+                "Precipitations_mm": "Précipitations (mm)"
+            },
+            title="Cumul annuel des précipitations"
+        )
+        st.plotly_chart(fig_pluie, use_container_width=True)
+
+        st.subheader("3. Comment évoluent les températures ?")
+
+        fig_temp = px.line(
+            annuel,
+            x="annee",
+            y=["Temperature_moyenne_C", "Temperature_maximale_C"],
+            markers=True,
+            labels={
+                "annee": "Année",
+                "value": "Température (°C)",
+                "variable": "Indicateur"
+            },
+            title="Températures annuelles"
+        )
+        st.plotly_chart(fig_temp, use_container_width=True)
+
+        st.subheader("4. Combien de jours avec orages ou vents forts ?")
+
+        fig_intense = px.bar(
+            annuel,
+            x="annee",
+            y="Jours_orage_ou_vents_forts",
+            labels={
+                "annee": "Année",
+                "Jours_orage_ou_vents_forts": "Nombre de jours"
+            },
+            title="Jours d'orage ou de rafales fortes"
+        )
+        st.plotly_chart(fig_intense, use_container_width=True)
+
+        st.subheader("5. Tableau des indicateurs annuels")
+
+        st.dataframe(
+            annuel.round(1),
+            hide_index=True,
+            use_container_width=True
+        )
+
+        fichier_csv = annuel.to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            "Télécharger les données annuelles (CSV)",
+            data=fichier_csv,
+            file_name=f"meteo_{ville}_{debut}_{fin}.csv",
+            mime="text/csv"
+        )
+
+    except Exception as erreur:
+        st.error(
+            "Impossible de charger les données météo. "
+            "Vérifiez la connexion Internet et réessayez."
+        )
+        st.caption(f"Détail technique : {erreur}")
 
     experiences = pd.DataFrame({
         "Expérience": [
