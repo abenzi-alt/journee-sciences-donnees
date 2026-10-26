@@ -210,8 +210,6 @@ elif page=="Reconnaître une image":
                 st.error("Le modèle n'a pas pu être chargé. Testez l'installation de PyTorch/torchvision avant la journée.")
                 st.code(str(e))
     st.caption("Modèle généraliste : les scores ne garantissent pas la justesse. Ne pas utiliser pour un diagnostic ou une décision à risque.")
-
-else:
     
 else:
     st.header("Tableau de bord — Journée des sciences des données")
