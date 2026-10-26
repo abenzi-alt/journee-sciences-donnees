@@ -6,28 +6,153 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 st.set_page_config(page_title="Sciences des données en action",layout="wide")
 st.title("Les sciences des données en action")
 st.write("Quatre mini-expériences interactives : prévoir, recommander, reconnaître et explorer.")
-page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Explorer les feux de forêt"])
+page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
-if page=="Prévoir les ventes":
+
+if page == "Prévoir les ventes":
     st.header("Prévoir les ventes d'un magasin")
-    st.write("Données synthétiques pour illustrer un modèle de régression.")
-    rng=np.random.default_rng(7); n=300; jour=np.arange(n)
-    df=pd.DataFrame({"jour":jour,"promotion":rng.choice([0,5,10,15,20,25,30],n),"weekend":(jour%7>=5).astype(int)})
-    df["saison"]=np.sin(2*np.pi*jour/365)
-    df["ventes"]=np.maximum(5,70+1.15*df.promotion+18*df.weekend+12*df.saison+rng.normal(0,8,n)).round()
-    split=240; X=df[["promotion","weekend","saison"]]; y=df.ventes
-    model=RandomForestRegressor(n_estimators=100,random_state=42,min_samples_leaf=3).fit(X.iloc[:split],y.iloc[:split])
-    mae=mean_absolute_error(y.iloc[split:],model.predict(X.iloc[split:]))
-    a,b=st.columns(2); a.metric("Jours simulés",len(df)); b.metric("Erreur moyenne sur la période test",f"{mae:.1f} unités")
-    st.plotly_chart(px.line(df,x="jour",y="ventes",title="Historique simulé des ventes"),use_container_width=True)
-    promo=st.slider("Promotion (%)",0,30,10,5); weekend=st.selectbox("Jour",["Semaine","Fin de semaine"]); saison=st.selectbox("Saison",["Hiver","Printemps","Été","Automne"])
-    sm={"Hiver":-.7,"Printemps":.7,"Été":.9,"Automne":-.2}
-    pred=model.predict(pd.DataFrame({"promotion":[promo],"weekend":[int(weekend=="Fin de semaine")],"saison":[sm[saison]]}))[0]
-    st.success(f"Prévision illustrative : environ {pred:.0f} unités.")
-    st.caption("Jeu synthétique : cette prévision n'est pas destinée à une décision commerciale réelle.")
+    st.write("Modifiez les paramètres et observez leurs effets sur les prévisions.")
+
+    with st.sidebar:
+        st.subheader("Paramètres de simulation")
+        n = st.selectbox("Historique (jours)", [300, 730, 1095], index=1)
+        promo = st.slider("Promotion (%)", 0, 50, 10, 5)
+        jour_type = st.selectbox(
+            "Type de jour",
+            ["Jour de semaine", "Fin de semaine", "Jour férié"],
+            index=1
+        )
+        saison = st.selectbox(
+            "Saison", ["Hiver", "Printemps", "Été", "Automne"], index=2
+        )
+        methode = st.selectbox(
+            "Méthode",
+            ["Régression linéaire", "Forêt aléatoire"]
+        )
+        horizon = st.selectbox("Horizon de prévision", [30, 60, 90, 180], index=2)
+
+    # Génération d'un historique synthétique reproductible
+    rng = np.random.default_rng(7)
+    df = pd.DataFrame({"jour": np.arange(n)})
+    df["promotion"] = rng.choice([0, 5, 10, 15, 20, 25, 30], n)
+    df["weekend"] = (df["jour"] % 7 >= 5).astype(int)
+    df["saison_num"] = np.sin(2 * np.pi * df["jour"] / 365)
+    df["ventes"] = np.maximum(
+        5,
+        70 + 0.8 * df["promotion"]
+        + 18 * df["weekend"]
+        + 12 * df["saison_num"]
+        + 0.025 * df["jour"]
+        + rng.normal(0, 8, n)
+    )
+
+    variables = ["jour", "promotion", "weekend", "saison_num"]
+    split = int(n * 0.8)
+    X_train, X_test = df[variables].iloc[:split], df[variables].iloc[split:]
+    y_train, y_test = df["ventes"].iloc[:split], df["ventes"].iloc[split:]
+
+    if methode == "Régression linéaire":
+        model = LinearRegression()
+    else:
+        model = RandomForestRegressor(
+            n_estimators=150, random_state=42, min_samples_leaf=3
+        )
+
+    model.fit(X_train, y_train)
+    pred_test = model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, pred_test)
+    rmse = np.sqrt(mean_squared_error(y_test, pred_test))
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Jours d'historique", n)
+    c2.metric("MAE sur le test", f"{mae:.1f} unités")
+    c3.metric("RMSE sur le test", f"{rmse:.1f} unités")
+
+    st.subheader("1. Ventes observées et prévisions sur le test")
+    test_graph = pd.DataFrame({
+        "Jour": X_test["jour"].values,
+        "Ventes observées": y_test.values,
+        "Ventes prévues": pred_test
+    }).melt(
+        id_vars="Jour", var_name="Série", value_name="Ventes"
+    )
+    st.plotly_chart(
+        px.line(test_graph, x="Jour", y="Ventes", color="Série"),
+        use_container_width=True
+    )
+
+    # Simulation prospective
+    jours_futurs = np.arange(n, n + horizon)
+    saison_val = {
+        "Hiver": -0.7, "Printemps": 0.7,
+        "Été": 0.9, "Automne": -0.2
+    }
+    weekend_val = {
+        "Jour de semaine": 0,
+        "Fin de semaine": 1,
+        "Jour férié": 1
+    }
+
+    scenario = pd.DataFrame({
+        "jour": jours_futurs,
+        "promotion": promo,
+        "weekend": weekend_val[jour_type],
+        "saison_num": saison_val[saison]
+    })
+    scenario["Ventes prévues"] = np.maximum(
+        0, model.predict(scenario[variables])
+    )
+
+    # Référence sans promotion, avec calendrier habituel
+    reference = scenario[variables].copy()
+    reference["promotion"] = 0
+    reference["weekend"] = (jours_futurs % 7 >= 5).astype(int)
+    reference["saison_num"] = np.sin(2 * np.pi * jours_futurs / 365)
+    scenario["Référence"] = np.maximum(
+        0, model.predict(reference[variables])
+    )
+
+    st.subheader("2. Comparer le scénario et la référence")
+    comparaison = scenario.melt(
+        id_vars="jour",
+        value_vars=["Ventes prévues", "Référence"],
+        var_name="Scénario",
+        value_name="Ventes"
+    )
+    st.plotly_chart(
+        px.line(
+            comparaison, x="jour", y="Ventes", color="Scénario",
+            title=f"Prévision sur {horizon} jours"
+        ),
+        use_container_width=True
+    )
+
+    a, b, c = st.columns(3)
+    a.metric("Moyenne prévue", f"{scenario['Ventes prévues'].mean():.1f}")
+    b.metric("Moyenne de référence", f"{scenario['Référence'].mean():.1f}")
+    c.metric(
+        "Écart moyen",
+        f"{(scenario['Ventes prévues'] - scenario['Référence']).mean():+.1f}"
+    )
+
+    st.download_button(
+        "Télécharger les prévisions CSV",
+        scenario.to_csv(index=False).encode("utf-8"),
+        "previsions_ventes.csv",
+        "text/csv"
+    )
+    st.caption(
+        "Données synthétiques à but pédagogique. Le type de jour et la saison "
+        "choisis sont appliqués à l'ensemble du scénario. Les écarts simulés "
+        "ne prouvent pas un effet causal de la promotion."
+    )
+
 
 elif page=="Recommander des livres":
     st.header("Trouver son prochain livre")
@@ -87,32 +212,57 @@ elif page=="Reconnaître une image":
     st.caption("Modèle généraliste : les scores ne garantissent pas la justesse. Ne pas utiliser pour un diagnostic ou une décision à risque.")
 
 else:
-    st.header("Explorer les données des feux de forêt")
-    st.write("Comparez des distributions météorologiques entre classes. Vous pouvez importer votre fichier réel.")
-    file=st.file_uploader("Importer algerian_data.csv (facultatif)",type=["csv"])
-    if file:
-        df=pd.read_csv(file)
-    else:
-        rng=np.random.default_rng(22); n=240
-        classes=rng.choice(["Feu","Non feu"],n,p=[.55,.45])
-        df=pd.DataFrame({"Temp":np.where(classes=="Feu",rng.normal(33,4,n),rng.normal(29,5,n)).clip(20,45),
-                         "RH":np.where(classes=="Feu",rng.normal(40,12,n),rng.normal(58,15,n)).clip(15,95),
-                         "Ws":rng.normal(15,4,n).clip(4,35),"Classes":classes})
-        st.caption("Jeu synthétique : tendances inventées pour montrer l'interface, pas des conclusions scientifiques.")
-    st.write(f"{len(df)} lignes · {len(df.columns)} colonnes")
-    st.dataframe(df.head(),use_container_width=True)
-    nums=df.select_dtypes(include=np.number).columns.tolist()
-    cats=df.select_dtypes(exclude=np.number).columns.tolist()
-    if nums:
-        a,b=st.columns(2)
-        var=a.selectbox("Variable numérique",nums)
-        grp=b.selectbox("Comparer selon",["Aucune"]+cats)
-        if grp!="Aucune": fig=px.box(df.dropna(subset=[var,grp]),x=grp,y=var,color=grp,title=f"{var} selon {grp}",points="outliers")
-        else: fig=px.histogram(df,x=var,marginal="box",title=f"Distribution de {var}")
-        st.plotly_chart(fig,use_container_width=True)
-        a,b,c=st.columns(3); a.metric("Médiane",f"{df[var].median():.2f}"); b.metric("Valeurs manquantes",int(df[var].isna().sum())); c.metric("Valeurs distinctes",int(df[var].nunique()))
-    if cats:
-        cat=st.selectbox("Variable qualitative à compter",cats)
-        st.plotly_chart(px.histogram(df,x=cat,color=cat,title=f"Répartition de {cat}"),use_container_width=True)
-    st.download_button("Télécharger les données",df.to_csv(index=False).encode("utf-8"),"donnees.csv","text/csv")
-    st.caption("Une association observée ne prouve pas un lien de causalité.")
+    
+else:
+    st.header("Tableau de bord — Journée des sciences des données")
+    st.write(
+        "Vue d'ensemble des quatre expériences interactives "
+        "et de leurs objectifs."
+    )
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Expériences disponibles", "4")
+    c2.metric("Domaines illustrés", "3")
+    c3.metric("Objectif", "Découvrir")
+
+    st.subheader("Les expériences proposées")
+
+    experiences = pd.DataFrame({
+        "Expérience": [
+            "Prévoir les ventes",
+            "Recommander des livres",
+            "Reconnaître une image",
+            "Tableau de bord"
+        ],
+        "Domaine": [
+            "Prévision et régression",
+            "Systèmes de recommandation",
+            "Classification d'images",
+            "Synthèse et visualisation"
+        ],
+        "Objectif": [
+            "Comparer les prévisions et les scénarios",
+            "Explorer des recommandations selon ses goûts",
+            "Comparer les catégories proposées par un modèle",
+            "Consulter la synthèse des activités"
+        ]
+    })
+
+    st.dataframe(experiences, hide_index=True, use_container_width=True)
+
+    st.subheader("Répartition des expériences")
+    st.plotly_chart(
+        px.bar(
+            experiences,
+            x="Expérience",
+            y=[1, 1, 1, 1],
+            title="Une interface par expérience"
+        ),
+        use_container_width=True
+    )
+
+    st.info(
+        "Utilisez le menu à gauche pour ouvrir une expérience et "
+        "tester ses paramètres."
+    )
+
