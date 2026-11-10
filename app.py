@@ -10,6 +10,17 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 st.set_page_config(page_title="Sciences des données en action",layout="wide")
 st.title("Les sciences des données en action")
+
+# Affichage du QR code
+col1, col2 = st.columns([5, 1])
+
+with col2:
+    st.image(
+        "qr_journee_sciences_donnees.png",
+        width=150
+    )
+    st.caption("Scannez pour accéder à l'application")
+
 st.write("Quatre mini-expériences interactives : prévoir, recommander, reconnaître et explorer.")
 page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
