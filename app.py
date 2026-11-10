@@ -9,8 +9,32 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 st.set_page_config(page_title="Sciences des données en action",layout="wide")
-st.title("Les sciences des données en action")
-st.write("Quatre mini-expériences interactives : prévoir, recommander, reconnaître et explorer.")
+
+# En-tête de l'application avec QR code
+col_titre, col_qr = st.columns([5, 1])
+
+with col_titre:
+    st.title("Les sciences des données en action")
+    st.write(
+        "Quatre mini-expériences interactives : "
+        "prévoir, recommander, reconnaître et explorer."
+    )
+
+with col_qr:
+    st.image("qr_journee_sciences_donnees.png", width=140)
+    st.caption("Scannez pour accéder à l'application")
+
+# Navigation
+page = st.sidebar.radio(
+    "Choisir une expérience",
+    [
+        "Prévoir les ventes",
+        "Recommander des livres",
+        "Reconnaître une image",
+        "Tableau de bord"
+    ]
+)
+
 page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
 # Configuration visuelle du tableau de bord
