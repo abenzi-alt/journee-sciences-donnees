@@ -13,16 +13,6 @@ st.title("Les sciences des données en action")
 st.write("Quatre mini-expériences interactives : prévoir, recommander, reconnaître et explorer.")
 page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
-# Affichage du QR code
-col1, col2 = st.columns([5, 1])
-
-with col2:
-    st.image(
-        "qr_journee_sciences_donnees.png",
-        width=150
-    )
-    st.caption("Scannez pour accéder à l'application")
-
 # Configuration visuelle du tableau de bord
 st.markdown("""
 <style>
