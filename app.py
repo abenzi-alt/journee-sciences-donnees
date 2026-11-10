@@ -2,39 +2,76 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from io import BytesIO
+import qrcode
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
-st.set_page_config(page_title="Sciences des données en action",layout="wide")
-from pathlib import Path
 
-# Chemin du QR code
-qr_path = Path(__file__).parent / "qr_journee_sciences_donnees.png"
 
-with col_qr:
-    if qr_path.exists():
-        st.image(str(qr_path), width=140)
-        st.caption("Scannez pour accéder à l'application")
-    else:
-        st.warning("QR code introuvable.")
-# En-tête de l'application avec QR code
+# ------------------------------------------------------------
+# CONFIGURATION DE LA PAGE
+# ------------------------------------------------------------
+
+st.set_page_config(
+    page_title="Sciences des données en action",
+    page_icon="📊",
+    layout="wide"
+)
+
+# Adresse publique de l'application
+APP_URL = (
+    "https://journee-sciences-donnees-fkhvqxjb6s8upage9wkw2l.streamlit.app/"
+)
+
+
+# ------------------------------------------------------------
+# GÉNÉRATION DU QR CODE (SANS FICHIER PNG EXTERNE)
+# ------------------------------------------------------------
+
+def generer_qr_code(url):
+    """Génère un QR code en mémoire à partir de l'adresse de l'application."""
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=3
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    image = qr.make_image(fill_color="black", back_color="white")
+    tampon = BytesIO()
+    image.save(tampon, format="PNG")
+    tampon.seek(0)
+    return tampon
+
+
+# ------------------------------------------------------------
+# EN-TÊTE DE L'APPLICATION
+# ------------------------------------------------------------
+
 col_titre, col_qr = st.columns([5, 1])
 
 with col_titre:
     st.title("Les sciences des données en action")
     st.write(
-        "Quatre mini-expériences interactives : "
-        "prévoir, recommander, reconnaître et explorer."
+        "Quatre mini-expériences interactives : prévoir, recommander, "
+        "reconnaître et explorer."
     )
 
 with col_qr:
-    st.image("qr_journee_sciences_donnees.png", width=140)
+    st.image(generer_qr_code(APP_URL), width=140)
     st.caption("Scannez pour accéder à l'application")
 
-# Navigation
+
+# ------------------------------------------------------------
+# NAVIGATION
+# ------------------------------------------------------------
+
 page = st.sidebar.radio(
     "Choisir une expérience",
     [
@@ -45,99 +82,141 @@ page = st.sidebar.radio(
     ]
 )
 
-page=st.sidebar.radio("Choisir une expérience",["Prévoir les ventes","Recommander des livres","Reconnaître une image","Tableau de bord"])
 
-# Configuration visuelle du tableau de bord
-st.markdown("""
-<style>
-    .stApp {
-        background: linear-gradient(135deg, #f0f7ff 0%, #fff8e7 100%);
-    }
+# ------------------------------------------------------------
+# CONFIGURATION VISUELLE
+# ------------------------------------------------------------
 
-    h1 {
-        color: #5425D8 !important;
-        font-weight: 900 !important;
-    }
+st.markdown(
+    """
+    <style>
+        .stApp {
+            background: linear-gradient(
+                135deg,
+                #f0f7ff 0%,
+                #fff8e7 100%
+            );
+        }
 
-    h2, h3 {
-        color: #0756C9 !important;
-        font-weight: 800 !important;
-    }
+        h1 {
+            color: #5425D8 !important;
+            font-weight: 900 !important;
+        }
 
-    [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #5425D8, #087CFA);
-        padding: 18px;
-        border-radius: 16px;
-        box-shadow: 0 5px 14px #5425D833;
-    }
+        h2, h3 {
+            color: #0756C9 !important;
+            font-weight: 800 !important;
+        }
 
-    [data-testid="stMetricLabel"],
-    [data-testid="stMetricLabel"] p {
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
-    }
+        [data-testid="stMetric"] {
+            background: linear-gradient(135deg, #5425D8, #087CFA);
+            padding: 18px;
+            border-radius: 16px;
+            box-shadow: 0 5px 14px #5425D833;
+        }
 
-    [data-testid="stMetricValue"],
-    [data-testid="stMetricValue"] div {
-        color: #FFE45E !important;
-        font-weight: 900 !important;
-    }
+        [data-testid="stMetricLabel"],
+        [data-testid="stMetricLabel"] p {
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+        }
 
-    [data-testid="stMetricDelta"] {
-        color: #B8FFD8 !important;
-    }
+        [data-testid="stMetricValue"],
+        [data-testid="stMetricValue"] div {
+            color: #FFE45E !important;
+            font-weight: 900 !important;
+        }
 
-    div[data-testid="stDownloadButton"] button {
-        background: linear-gradient(90deg, #FF6B00, #FF2D75);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: 800;
-    }
+        [data-testid="stMetricDelta"] {
+            color: #B8FFD8 !important;
+        }
 
-    div[data-testid="stDownloadButton"] button:hover {
-        background: #5425D8;
-        color: white;
-    }
+        div[data-testid="stDownloadButton"] button {
+            background: linear-gradient(90deg, #FF6B00, #FF2D75);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 800;
+        }
 
-    div[data-testid="stAlert"] {
-        border-radius: 12px;
-    }
-</style>
-""", unsafe_allow_html=True)
+        div[data-testid="stDownloadButton"] button:hover {
+            background: #5425D8;
+            color: white;
+        }
 
+        div[data-testid="stAlert"] {
+            border-radius: 12px;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# EXPÉRIENCE 1 — PRÉVOIR LES VENTES
+# ============================================================
 
 if page == "Prévoir les ventes":
+
     st.header("Prévoir les ventes d'un magasin")
-    st.write("Modifiez les paramètres et observez leurs effets sur les prévisions.")
+    st.write(
+        "Modifiez les paramètres et observez leurs effets "
+        "sur les prévisions."
+    )
 
     with st.sidebar:
         st.subheader("Paramètres de simulation")
-        n = st.selectbox("Historique (jours)", [300, 730, 1095], index=1)
-        promo = st.slider("Promotion (%)", 0, 50, 10, 5)
+
+        n = st.selectbox(
+            "Historique (jours)",
+            [300, 730, 1095],
+            index=1
+        )
+
+        promo = st.slider(
+            "Promotion (%)",
+            0, 50, 10, 5
+        )
+
         jour_type = st.selectbox(
             "Type de jour",
             ["Jour de semaine", "Fin de semaine", "Jour férié"],
             index=1
         )
+
         saison = st.selectbox(
-            "Saison", ["Hiver", "Printemps", "Été", "Automne"], index=2
+            "Saison",
+            ["Hiver", "Printemps", "Été", "Automne"],
+            index=2
         )
+
         methode = st.selectbox(
             "Méthode",
             ["Régression linéaire", "Forêt aléatoire"]
         )
-        horizon = st.selectbox("Horizon de prévision", [30, 60, 90, 180], index=2)
+
+        horizon = st.selectbox(
+            "Horizon de prévision",
+            [30, 60, 90, 180],
+            index=2
+        )
 
     # Génération d'un historique synthétique reproductible
     rng = np.random.default_rng(7)
+
     df = pd.DataFrame({"jour": np.arange(n)})
-    df["promotion"] = rng.choice([0, 5, 10, 15, 20, 25, 30], n)
+    df["promotion"] = rng.choice(
+        [0, 5, 10, 15, 20, 25, 30],
+        n
+    )
     df["weekend"] = (df["jour"] % 7 >= 5).astype(int)
     df["saison_num"] = np.sin(2 * np.pi * df["jour"] / 365)
+
     df["ventes"] = np.maximum(
         5,
-        70 + 0.8 * df["promotion"]
+        70
+        + 0.8 * df["promotion"]
         + 18 * df["weekend"]
         + 12 * df["saison_num"]
         + 0.025 * df["jour"]
@@ -145,15 +224,21 @@ if page == "Prévoir les ventes":
     )
 
     variables = ["jour", "promotion", "weekend", "saison_num"]
+
     split = int(n * 0.8)
-    X_train, X_test = df[variables].iloc[:split], df[variables].iloc[split:]
-    y_train, y_test = df["ventes"].iloc[:split], df["ventes"].iloc[split:]
+
+    X_train = df[variables].iloc[:split]
+    X_test = df[variables].iloc[split:]
+    y_train = df["ventes"].iloc[:split]
+    y_test = df["ventes"].iloc[split:]
 
     if methode == "Régression linéaire":
         model = LinearRegression()
     else:
         model = RandomForestRegressor(
-            n_estimators=150, random_state=42, min_samples_leaf=3
+            n_estimators=150,
+            random_state=42,
+            min_samples_leaf=3
         )
 
     model.fit(X_train, y_train)
@@ -168,24 +253,37 @@ if page == "Prévoir les ventes":
     c3.metric("RMSE sur le test", f"{rmse:.1f} unités")
 
     st.subheader("1. Ventes observées et prévisions sur le test")
+
     test_graph = pd.DataFrame({
         "Jour": X_test["jour"].values,
         "Ventes observées": y_test.values,
         "Ventes prévues": pred_test
     }).melt(
-        id_vars="Jour", var_name="Série", value_name="Ventes"
+        id_vars="Jour",
+        var_name="Série",
+        value_name="Ventes"
     )
+
     st.plotly_chart(
-        px.line(test_graph, x="Jour", y="Ventes", color="Série"),
+        px.line(
+            test_graph,
+            x="Jour",
+            y="Ventes",
+            color="Série"
+        ),
         use_container_width=True
     )
 
     # Simulation prospective
     jours_futurs = np.arange(n, n + horizon)
+
     saison_val = {
-        "Hiver": -0.7, "Printemps": 0.7,
-        "Été": 0.9, "Automne": -0.2
+        "Hiver": -0.7,
+        "Printemps": 0.7,
+        "Été": 0.9,
+        "Automne": -0.2
     }
+
     weekend_val = {
         "Jour de semaine": 0,
         "Fin de semaine": 1,
@@ -198,40 +296,60 @@ if page == "Prévoir les ventes":
         "weekend": weekend_val[jour_type],
         "saison_num": saison_val[saison]
     })
+
     scenario["Ventes prévues"] = np.maximum(
-        0, model.predict(scenario[variables])
+        0,
+        model.predict(scenario[variables])
     )
 
     # Référence sans promotion, avec calendrier habituel
     reference = scenario[variables].copy()
     reference["promotion"] = 0
     reference["weekend"] = (jours_futurs % 7 >= 5).astype(int)
-    reference["saison_num"] = np.sin(2 * np.pi * jours_futurs / 365)
+    reference["saison_num"] = np.sin(
+        2 * np.pi * jours_futurs / 365
+    )
+
     scenario["Référence"] = np.maximum(
-        0, model.predict(reference[variables])
+        0,
+        model.predict(reference[variables])
     )
 
     st.subheader("2. Comparer le scénario et la référence")
+
     comparaison = scenario.melt(
         id_vars="jour",
         value_vars=["Ventes prévues", "Référence"],
         var_name="Scénario",
         value_name="Ventes"
     )
+
     st.plotly_chart(
         px.line(
-            comparaison, x="jour", y="Ventes", color="Scénario",
+            comparaison,
+            x="jour",
+            y="Ventes",
+            color="Scénario",
             title=f"Prévision sur {horizon} jours"
         ),
         use_container_width=True
     )
 
     a, b, c = st.columns(3)
-    a.metric("Moyenne prévue", f"{scenario['Ventes prévues'].mean():.1f}")
-    b.metric("Moyenne de référence", f"{scenario['Référence'].mean():.1f}")
+
+    a.metric(
+        "Moyenne prévue",
+        f"{scenario['Ventes prévues'].mean():.1f}"
+    )
+    b.metric(
+        "Moyenne de référence",
+        f"{scenario['Référence'].mean():.1f}"
+    )
     c.metric(
         "Écart moyen",
-        f"{(scenario['Ventes prévues'] - scenario['Référence']).mean():+.1f}"
+        f"{(
+            scenario['Ventes prévues'] - scenario['Référence']
+        ).mean():+.1f}"
     )
 
     st.download_button(
@@ -240,73 +358,227 @@ if page == "Prévoir les ventes":
         "previsions_ventes.csv",
         "text/csv"
     )
+
     st.caption(
-        "Données synthétiques à but pédagogique. Le type de jour et la saison "
-        "choisis sont appliqués à l'ensemble du scénario. Les écarts simulés "
-        "ne prouvent pas un effet causal de la promotion."
+        "Données synthétiques à but pédagogique. Le type de jour et "
+        "la saison choisis sont appliqués à l'ensemble du scénario. "
+        "Les écarts simulés ne prouvent pas un effet causal de la promotion."
     )
 
 
-elif page=="Recommander des livres":
-    st.header("Trouver son prochain livre")
-    books=pd.DataFrame([
-    ["Les mystères du phare","Policier","Enquête, indices, village côtier et suspense."],
-    ["Le dernier témoin","Policier","Détective, affaire criminelle et enquête pleine de suspense."],
-    ["L'ombre des archives","Policier","Une archiviste découvre des preuves oubliées."],
-    ["Voyage vers Mars","Science-fiction","Mission spatiale, Mars, robots et vie dans l'univers."],
-    ["Le code des étoiles","Science-fiction","Intelligence artificielle, exploration spatiale et avenir."],
-    ["Les jardins de demain","Environnement","Biodiversité, agriculture urbaine et climat."],
-    ["Comprendre le climat","Sciences","Données environnementales et changements climatiques."],
-    ["Petite histoire des nombres","Mathématiques","Nombres, statistiques et usages des mathématiques."],
-    ["Les données au quotidien","Sciences des données","Statistiques, visualisation et apprentissage automatique."],
-    ["Le café des souvenirs","Roman","Amitié, rencontres et souvenirs."]
-    ],columns=["Titre","Genre","Description"])
-    books["texte"]=books.Genre+" "+books.Description
-    mat=TfidfVectorizer().fit_transform(books.texte)
-    selected=st.multiselect("Choisissez les livres que vous aimez",books.Titre.tolist(),default=[books.Titre.iloc[3]])
-    genre=st.selectbox("Genre souhaité",["Tous"]+sorted(books.Genre.unique()))
-    if st.button("Obtenir des recommandations",type="primary"):
-        if not selected: st.warning("Choisissez au moins un livre.")
-        else:
-            ids=books.index[books.Titre.isin(selected)].tolist()
-            profile=np.asarray(mat[ids].mean(axis=0))
-            scores=cosine_similarity(profile,mat).ravel()
-            rec=books.copy(); rec["Similarité"]=scores
-            rec=rec[~rec.Titre.isin(selected)]
-            if genre!="Tous": rec=rec[rec.Genre==genre]
-            rec=rec.sort_values("Similarité",ascending=False).head(5)
-            if rec.empty: st.info("Aucune suggestion pour ce filtre.")
-            for _,r in rec.iterrows():
-                with st.container(border=True):
-                    st.subheader(r.Titre); st.write(r.Description); st.caption(f"{r.Genre} · proximité textuelle : {r.Similarité:.0%}")
-    st.caption("Petit catalogue pédagogique. La similarité textuelle ne garantit pas que vous aimerez le livre.")
+# ============================================================
+# EXPÉRIENCE 2 — RECOMMANDER DES LIVRES
+# ============================================================
 
-elif page=="Reconnaître une image":
+elif page == "Recommander des livres":
+
+    st.header("Trouver son prochain livre")
+
+    books = pd.DataFrame(
+        [
+            [
+                "Les mystères du phare",
+                "Policier",
+                "Enquête, indices, village côtier et suspense."
+            ],
+            [
+                "Le dernier témoin",
+                "Policier",
+                "Détective, affaire criminelle et enquête pleine de suspense."
+            ],
+            [
+                "L'ombre des archives",
+                "Policier",
+                "Une archiviste découvre des preuves oubliées."
+            ],
+            [
+                "Voyage vers Mars",
+                "Science-fiction",
+                "Mission spatiale, Mars, robots et vie dans l'univers."
+            ],
+            [
+                "Le code des étoiles",
+                "Science-fiction",
+                "Intelligence artificielle, exploration spatiale et avenir."
+            ],
+            [
+                "Les jardins de demain",
+                "Environnement",
+                "Biodiversité, agriculture urbaine et climat."
+            ],
+            [
+                "Comprendre le climat",
+                "Sciences",
+                "Données environnementales et changements climatiques."
+            ],
+            [
+                "Petite histoire des nombres",
+                "Mathématiques",
+                "Nombres, statistiques et usages des mathématiques."
+            ],
+            [
+                "Les données au quotidien",
+                "Sciences des données",
+                "Statistiques, visualisation et apprentissage automatique."
+            ],
+            [
+                "Le café des souvenirs",
+                "Roman",
+                "Amitié, rencontres et souvenirs."
+            ]
+        ],
+        columns=["Titre", "Genre", "Description"]
+    )
+
+    books["texte"] = books["Genre"] + " " + books["Description"]
+
+    mat = TfidfVectorizer().fit_transform(books["texte"])
+
+    selected = st.multiselect(
+        "Choisissez les livres que vous aimez",
+        books["Titre"].tolist(),
+        default=[books["Titre"].iloc[3]]
+    )
+
+    genre = st.selectbox(
+        "Genre souhaité",
+        ["Tous"] + sorted(books["Genre"].unique())
+    )
+
+    if st.button("Obtenir des recommandations", type="primary"):
+
+        if not selected:
+            st.warning("Choisissez au moins un livre.")
+
+        else:
+            ids = books.index[
+                books["Titre"].isin(selected)
+            ].tolist()
+
+            profile = np.asarray(mat[ids].mean(axis=0))
+            scores = cosine_similarity(profile, mat).ravel()
+
+            rec = books.copy()
+            rec["Similarité"] = scores
+
+            rec = rec[~rec["Titre"].isin(selected)]
+
+            if genre != "Tous":
+                rec = rec[rec["Genre"] == genre]
+
+            rec = rec.sort_values(
+                "Similarité",
+                ascending=False
+            ).head(5)
+
+            if rec.empty:
+                st.info("Aucune suggestion pour ce filtre.")
+
+            for _, r in rec.iterrows():
+                with st.container(border=True):
+                    st.subheader(r["Titre"])
+                    st.write(r["Description"])
+                    st.caption(
+                        f"{r['Genre']} · proximité textuelle : "
+                        f"{r['Similarité']:.0%}"
+                    )
+
+    st.caption(
+        "Petit catalogue pédagogique. La similarité textuelle "
+        "ne garantit pas que vous aimerez le livre."
+    )
+
+
+# ============================================================
+# EXPÉRIENCE 3 — RECONNAÎTRE UNE IMAGE
+# ============================================================
+
+elif page == "Reconnaître une image":
+
     st.header("Faire reconnaître une image par l'IA")
-    st.write("Cette page utilise MobileNetV2 préentraîné. Le premier chargement peut être long et nécessite Internet.")
-    file=st.file_uploader("Choisir une image JPG ou PNG",type=["jpg","jpeg","png"])
-    if file:
+
+    st.write(
+        "Cette page utilise MobileNetV2 préentraîné. "
+        "Le premier chargement peut être long et nécessite Internet."
+    )
+
+    fichier_image = st.file_uploader(
+        "Choisir une image JPG ou PNG",
+        type=["jpg", "jpeg", "png"]
+    )
+
+    if fichier_image is not None:
+
         from PIL import Image
-        img=Image.open(file).convert("RGB"); st.image(img,caption="Image choisie",width=450)
-        if st.button("Analyser l'image",type="primary"):
+
+        img = Image.open(fichier_image).convert("RGB")
+
+        st.image(
+            img,
+            caption="Image choisie",
+            width=450
+        )
+
+        if st.button("Analyser l'image", type="primary"):
+
             try:
                 import torch
-                from torchvision.models import mobilenet_v2,MobileNet_V2_Weights
-                weights=MobileNet_V2_Weights.DEFAULT; model=mobilenet_v2(weights=weights).eval()
-                tensor=weights.transforms()(img).unsqueeze(0)
-                with torch.no_grad(): probs=model(tensor).softmax(1)[0]
-                vals,inds=probs.topk(5); labels=weights.meta["categories"]
-                result=pd.DataFrame({"Catégorie":[labels[i] for i in inds.tolist()],"Score":[float(v) for v in vals]})
-                st.dataframe(result.style.format({"Score":"{:.1%}"}),hide_index=True,use_container_width=True)
-                st.bar_chart(result.set_index("Catégorie"))
+                from torchvision.models import (
+                    mobilenet_v2,
+                    MobileNet_V2_Weights
+                )
+
+                weights = MobileNet_V2_Weights.DEFAULT
+                model = mobilenet_v2(weights=weights).eval()
+
+                tensor = weights.transforms()(img).unsqueeze(0)
+
+                with torch.no_grad():
+                    probs = model(tensor).softmax(1)[0]
+
+                vals, inds = probs.topk(5)
+                labels = weights.meta["categories"]
+
+                result = pd.DataFrame({
+                    "Catégorie": [
+                        labels[i] for i in inds.tolist()
+                    ],
+                    "Score": [
+                        float(v) for v in vals
+                    ]
+                })
+
+                st.dataframe(
+                    result.style.format({"Score": "{:.1%}"}),
+                    hide_index=True,
+                    use_container_width=True
+                )
+
+                st.bar_chart(
+                    result.set_index("Catégorie")
+                )
+
             except Exception as e:
-                st.error("Le modèle n'a pas pu être chargé. Testez l'installation de PyTorch/torchvision avant la journée.")
+                st.error(
+                    "Le modèle n'a pas pu être chargé. "
+                    "Vérifiez l'installation de PyTorch et torchvision."
+                )
                 st.code(str(e))
-    st.caption("Modèle généraliste : les scores ne garantissent pas la justesse. Ne pas utiliser pour un diagnostic ou une décision à risque.")
-    
+
+    st.caption(
+        "Modèle généraliste : les scores ne garantissent pas la justesse. "
+        "Ne pas utiliser pour un diagnostic ou une décision à risque."
+    )
+
+
+# ============================================================
+# EXPÉRIENCE 4 — TABLEAU DE BORD MÉTÉO ET CLIMAT
+# ============================================================
 
 else:
+
     st.title("Météo et climat : évolution au fil des années")
+
     st.write(
         "Explorez les variations de l'ensoleillement, des précipitations, "
         "des températures et des épisodes météorologiques intenses."
@@ -319,13 +591,16 @@ else:
         "Toronto": (43.6532, -79.3832),
         "Québec": (46.8139, -71.2080),
         "Vancouver": (49.2827, -123.1207),
-        "Paris": (48.8566, 2.3522),
+        "Paris": (48.8566, 2.3522)
     }
 
     c1, c2 = st.columns(2)
 
     with c1:
-        ville = st.selectbox("Choisir une ville", list(villes.keys()))
+        ville = st.selectbox(
+            "Choisir une ville",
+            list(villes.keys())
+        )
 
     with c2:
         periode = st.slider(
@@ -340,6 +615,7 @@ else:
 
     @st.cache_data(ttl=86400)
     def charger_meteo(lat, lon, annee_debut, annee_fin):
+
         import requests
 
         url = "https://archive-api.open-meteo.com/v1/archive"
@@ -363,30 +639,48 @@ else:
             "timezone": "auto"
         }
 
-        reponse = requests.get(url, params=params, timeout=60)
+        reponse = requests.get(
+            url,
+            params=params,
+            timeout=60
+        )
         reponse.raise_for_status()
+
         donnees = reponse.json()
 
         if "daily" not in donnees:
-            raise ValueError("Les données météorologiques sont indisponibles.")
+            raise ValueError(
+                "Les données météorologiques sont indisponibles."
+            )
 
-        df = pd.DataFrame(donnees["daily"])
-        df["time"] = pd.to_datetime(df["time"])
-        return df
+        df_meteo = pd.DataFrame(donnees["daily"])
+        df_meteo["time"] = pd.to_datetime(df_meteo["time"])
+
+        return df_meteo
 
     try:
-        with st.spinner("Chargement des données météorologiques..."):
+
+        with st.spinner(
+            "Chargement des données météorologiques..."
+        ):
             df = charger_meteo(
-                latitude, longitude, debut, fin
+                latitude,
+                longitude,
+                debut,
+                fin
             )
 
         if df.empty:
-            st.warning("Aucune donnée disponible pour cette période.")
+            st.warning(
+                "Aucune donnée disponible pour cette période."
+            )
             st.stop()
 
         # Préparation des variables
         df["annee"] = df["time"].dt.year
-        df["ensoleillement_h"] = df["sunshine_duration"] / 3600
+        df["ensoleillement_h"] = (
+            df["sunshine_duration"] / 3600
+        )
 
         # Définitions opérationnelles des indicateurs
         df["jour_ensoleille"] = (
@@ -423,20 +717,39 @@ else:
 
         st.subheader(f"Vue d'ensemble — {ville}")
 
-        total_soleil = int(annuel["Jours_ensoleilles"].sum())
-        total_pluie = round(annuel["Precipitations_mm"].sum(), 1)
+        total_soleil = int(
+            annuel["Jours_ensoleilles"].sum()
+        )
+        total_pluie = round(
+            annuel["Precipitations_mm"].sum(),
+            1
+        )
         total_intense = int(
             annuel["Jours_orage_ou_vents_forts"].sum()
         )
         temp_moyenne = round(
-            df["temperature_2m_mean"].mean(), 1
+            df["temperature_2m_mean"].mean(),
+            1
         )
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Jours ensoleillés", f"{total_soleil:,}")
-        m2.metric("Précipitations cumulées", f"{total_pluie:,.0f} mm")
-        m3.metric("Jours météo intense", f"{total_intense:,}")
-        m4.metric("Température moyenne", f"{temp_moyenne} °C")
+
+        m1.metric(
+            "Jours ensoleillés",
+            f"{total_soleil:,}"
+        )
+        m2.metric(
+            "Précipitations cumulées",
+            f"{total_pluie:,.0f} mm"
+        )
+        m3.metric(
+            "Jours météo intense",
+            f"{total_intense:,}"
+        )
+        m4.metric(
+            "Température moyenne",
+            f"{temp_moyenne} °C"
+        )
 
         st.caption(
             "Les indicateurs couvrent la période sélectionnée. "
@@ -448,7 +761,10 @@ else:
         )
 
         st.divider()
-        st.subheader("1. Combien de jours ensoleillés par année ?")
+
+        st.subheader(
+            "1. Combien de jours ensoleillés par année ?"
+        )
 
         fig_soleil = px.bar(
             annuel,
@@ -461,9 +777,15 @@ else:
             },
             title="Évolution annuelle des jours ensoleillés"
         )
-        st.plotly_chart(fig_soleil, use_container_width=True)
 
-        st.subheader("2. Les précipitations augmentent-elles ?")
+        st.plotly_chart(
+            fig_soleil,
+            use_container_width=True
+        )
+
+        st.subheader(
+            "2. Les précipitations augmentent-elles ?"
+        )
 
         fig_pluie = px.bar(
             annuel,
@@ -476,14 +798,23 @@ else:
             },
             title="Cumul annuel des précipitations"
         )
-        st.plotly_chart(fig_pluie, use_container_width=True)
 
-        st.subheader("3. Comment évoluent les températures ?")
+        st.plotly_chart(
+            fig_pluie,
+            use_container_width=True
+        )
+
+        st.subheader(
+            "3. Comment évoluent les températures ?"
+        )
 
         fig_temp = px.line(
             annuel,
             x="annee",
-            y=["Temperature_moyenne_C", "Temperature_maximale_C"],
+            y=[
+                "Temperature_moyenne_C",
+                "Temperature_maximale_C"
+            ],
             markers=True,
             labels={
                 "annee": "Année",
@@ -492,9 +823,15 @@ else:
             },
             title="Températures annuelles"
         )
-        st.plotly_chart(fig_temp, use_container_width=True)
 
-        st.subheader("4. Combien de jours avec orages ou vents forts ?")
+        st.plotly_chart(
+            fig_temp,
+            use_container_width=True
+        )
+
+        st.subheader(
+            "4. Combien de jours avec orages ou vents forts ?"
+        )
 
         fig_intense = px.bar(
             annuel,
@@ -506,9 +843,15 @@ else:
             },
             title="Jours d'orage ou de rafales fortes"
         )
-        st.plotly_chart(fig_intense, use_container_width=True)
 
-        st.subheader("5. Tableau des indicateurs annuels")
+        st.plotly_chart(
+            fig_intense,
+            use_container_width=True
+        )
+
+        st.subheader(
+            "5. Tableau des indicateurs annuels"
+        )
 
         st.dataframe(
             annuel.round(1),
@@ -516,7 +859,9 @@ else:
             use_container_width=True
         )
 
-        fichier_csv = annuel.to_csv(index=False).encode("utf-8-sig")
+        fichier_csv = annuel.to_csv(
+            index=False
+        ).encode("utf-8-sig")
 
         st.download_button(
             "Télécharger les données annuelles (CSV)",
@@ -526,6 +871,7 @@ else:
         )
 
     except Exception as erreur:
+
         st.error(
             "Impossible de charger les données météo. "
             "Vérifiez la connexion Internet et réessayez."
