@@ -9,7 +9,17 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 st.set_page_config(page_title="Sciences des données en action",layout="wide")
+from pathlib import Path
 
+# Chemin du QR code
+qr_path = Path(__file__).parent / "qr_journee_sciences_donnees.png"
+
+with col_qr:
+    if qr_path.exists():
+        st.image(str(qr_path), width=140)
+        st.caption("Scannez pour accéder à l'application")
+    else:
+        st.warning("QR code introuvable.")
 # En-tête de l'application avec QR code
 col_titre, col_qr = st.columns([5, 1])
 
